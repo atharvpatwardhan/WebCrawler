@@ -4,13 +4,13 @@ CFLAGS = -std=c11 -pedantic -pthread -Wall -Werror -fsanitize=address,undefined 
 all: crawler
 
 crawler: crawler.c
-	$(CC) $(CFLAGS) crawler.c -o crawler
+	$(CC) $(CFLAGS) crawler.c -o crawler.o
 
 clean:
-	rm -f crawler *~
+	rm -f crawler.o *~
 
 run: crawler
-	./crawler inpt.txt
+	./crawler.o inpt.txt
 	
 	
 
