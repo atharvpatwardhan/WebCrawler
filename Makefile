@@ -10,7 +10,7 @@ clean:
 	rm -f crawler *~
 
 run: crawler
-	./crawler
+	./crawler inpt.txt
 	
 	
 
