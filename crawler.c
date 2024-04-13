@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-
+// Okay
 // Define a structure for queue elements.
 typedef struct URLQueueNode {
     char *url;
