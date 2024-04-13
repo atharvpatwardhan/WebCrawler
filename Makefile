@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c11 -pedantic -pthread -Wall -Werror -fsanitize=address,undefined -lm -g
+CFLAGS = -std=c11 -pedantic -pthread -Wall -Werror -fsanitize=address,undefined -lm -g -lcurl
 
 all: crawler
 
