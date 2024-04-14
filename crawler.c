@@ -36,27 +36,8 @@ int main(int argc, char ** argv)
         printf("not enough args\n");
         return EXIT_SUCCESS;
     }
-    FILE* file = fopen(argv[1],"r");
-    if(file==NULL)
-    {
-        printf("Error file did not open\n");
-        return EXIT_SUCCESS;
-    }
     
-    fseek(file,0,SEEK_END);
-    unsigned long fsize = ftell(file);
-    
-    fseek(file,0,SEEK_SET);
-    
-    char* url = malloc(fsize*sizeof(char));
-    int ret = fscanf(file,"%s",url);
-    printf("%d\n",ret);
-    if(ret!=1)
-    {
-        printf("file reading error\n");
-        free(url);
-        return EXIT_SUCCESS;
-    }
+    char* url = argv[1];
     printf("%s\n",url);
 
     CURL* curl;
@@ -66,9 +47,7 @@ int main(int argc, char ** argv)
     if(curl==NULL)
       {
 	printf("REQUEST FAILED\n");
-	free(url);
-	fclose(file);
-	return 1;
+	//return 1;
       }
 
     curl_easy_setopt(curl, CURLOPT_URL,url);
@@ -77,12 +56,10 @@ int main(int argc, char ** argv)
     if(result != CURLE_OK)
       {
 	printf("Error %s\n",curl_easy_strerror(result));
-	free(url);
-	fclose(file);
-	return -1;
+	//return -1;
       }
+
     curl_easy_cleanup(curl);
-    free(url);
-    fclose(file);
+    
     return EXIT_SUCCESS;
 }

@@ -10,7 +10,7 @@ clean:
 	rm -f crawler.o *~
 
 run: crawler
-	./crawler.o inpt.txt
+	./crawler.o www.google.com
 	
 	
 
