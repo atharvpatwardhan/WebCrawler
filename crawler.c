@@ -71,6 +71,40 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
   return real_size;
 }
 
+void extract_url(char *html){
+  char *sub;
+  int i;
+  int j;
+  sub = strstr(html,"href=\"");
+  if(sub == NULL){
+    printf("Boo hoo not working\n");
+  }
+  else{
+    i=0;
+    while(i>=0)
+    {
+      if(sub[i+6] == '"')
+      {
+        break;
+      }
+      i++;
+    }
+    char* furl = malloc(sizeof(char)*(i+1));
+    j=0;
+    while (j<i)
+    {
+      furl[j]=sub[j+6];
+      j++;
+    }
+    furl[i]='\0';
+    /*char *surl= malloc(sizeof(char)*(i+1+7));
+    strcat("http://",);*/
+    printf("String: %s\n",furl);
+    free(furl);
+  }
+
+}
+
 void *fetchurl(char *url)
 {
    CURL* curl;
@@ -103,10 +137,13 @@ void *fetchurl(char *url)
       }
 
 
-    printf("%s\n", response.string);
+    // printf("%s\n", response.string);
+
+    curl_easy_cleanup(curl);
+    extract_url(response.string);
+
 
     free(response.string);
-    curl_easy_cleanup(curl);
     return NULL;
 }
 
@@ -122,6 +159,7 @@ int main(int argc, char ** argv)
     printf("%s\n",url);
 
     fetchurl(argv[1]);
+
     
     return EXIT_SUCCESS;
 }
