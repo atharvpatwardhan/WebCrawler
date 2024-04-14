@@ -33,7 +33,7 @@ char *dequeue(URLQueue *queue);
 void enqueue(URLQueue *queue, const char *url);
 
 // Placeholder for the function to fetch and process a URL.
-void *fetch_url(void *arg);
+void *fetch_url(void *url);
 
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
@@ -71,6 +71,44 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
   return real_size;
 }
 
+void *fetchurl(char *url)
+{
+   CURL* curl;
+    CURLcode result;
+    curl = curl_easy_init();
+    Response response;
+    response.string = malloc(1);
+    response.size = 0;
+    
+
+    if(curl==NULL)
+      {
+	printf("REQUEST FAILED\n");
+	free(response.string);
+	curl_easy_cleanup(curl);
+	return NULL;
+      }
+
+    curl_easy_setopt(curl, CURLOPT_URL,url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_chunk);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &response);
+    result =curl_easy_perform(curl);
+
+    if(result != CURLE_OK)
+      {
+	printf("Error %s\n",curl_easy_strerror(result));
+	free(response.string);
+	curl_easy_cleanup(curl);
+	return NULL;
+      }
+
+
+    printf("%s\n", response.string);
+
+    free(response.string);
+    curl_easy_cleanup(curl);
+    return NULL;
+}
 
 int main(int argc, char ** argv)
 {
@@ -83,36 +121,7 @@ int main(int argc, char ** argv)
     char* url = argv[1];
     printf("%s\n",url);
 
-    CURL* curl;
-    CURLcode result;
-    curl = curl_easy_init();
-    Response response;
-    response.string = malloc(1);
-    response.size = 0;
-    
-
-    if(curl==NULL)
-      {
-	printf("REQUEST FAILED\n");
-	//return 1;
-      }
-
-    curl_easy_setopt(curl, CURLOPT_URL,url);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_chunk);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &response);
-    result =curl_easy_perform(curl);
-
-    if(result != CURLE_OK)
-      {
-	printf("Error %s\n",curl_easy_strerror(result));
-	//return -1;
-      }
-
-
-    printf("%s\n", response.string);
-
-    free(response.string);
-    curl_easy_cleanup(curl);
+    fetchurl(argv[1]);
     
     return EXIT_SUCCESS;
 }
