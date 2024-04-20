@@ -11,6 +11,8 @@
 typedef struct URLQueueNode {
     char *url;
     struct URLQueueNode *next;
+    struct URLQueueNode *parent;
+    int depth;
 } URLQueueNode;
 
 // Define a structure for a thread-safe queue.
@@ -72,13 +74,15 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 }
 
 void extract_url(char *html){
+  
   char *sub;
   int i;
   int j;
-  sub = strstr(html,"href=\"");
+  sub = strstr(html,"href=\"http");
   if(sub == NULL){
     printf("Boo hoo not working\n");
-  }
+    return;
+      }
   else{
     i=0;
     while(i>=0)
@@ -101,6 +105,8 @@ void extract_url(char *html){
     strcat("http://",);*/
     printf("String: %s\n",furl);
     free(furl);
+    html = html+(sizeof(char)*i);
+    extract_url(html);
   }
 
 }
