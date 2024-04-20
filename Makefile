@@ -10,7 +10,7 @@ clean:
 	rm -f crawler.o *~
 
 run: crawler
-	./crawler.o www.google.com
+	./crawler.o https://en.wikipedia.org/wiki/India
 	
 	
 
