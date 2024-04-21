@@ -35,7 +35,7 @@ int depth_limit;
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
 void initQueue(URLQueue *queue);
-char *dequeue(URLQueue *queue);
+URLQueueNode *dequeue(URLQueue *queue);
 void enqueue(URLQueueNode *newNode, URLQueue *queue);
 URLQueueNode *createURLQueueNode(char *url);
 URLQueue *createURLQueue();
@@ -43,7 +43,6 @@ void extract_url(char *html, URLQueue *queue);
 int hashing(char *url);
 void logURL(FILE *file, const char *url);
 bool url_filter(URLQueueNode *node);
-
 
 // Placeholder for the function to fetch and process a URL.
 void *fetch_url(void *url);
@@ -91,7 +90,7 @@ void enqueue(URLQueueNode *newNode, URLQueue *queue)
 }
 
 // Remove a URL from the queue.
-char *dequeue(URLQueue *queue)
+URLQueueNode *dequeue(URLQueue *queue)
 {
   pthread_mutex_lock(&queue->lock);
   if (queue->head == NULL)
@@ -100,16 +99,16 @@ char *dequeue(URLQueue *queue)
     return NULL;
   }
   URLQueueNode *temp = queue->head;
-  char *url = temp->url;
   queue->head = queue->head->next;
   if (queue->head == NULL)
   {
     queue->tail = NULL;
   }
 
-  free(temp);
+  // printf("\nDequeue : %s",url);
+
   pthread_mutex_unlock(&queue->lock);
-  return url;
+  return temp;
 }
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
@@ -171,7 +170,13 @@ void extract_url(char *html, URLQueue *queue)
 
 void *fetchurl(URLQueue *queue) // fetches url in response struct
 {
-  char *url = dequeue(queue);
+  URLQueueNode *node = dequeue(queue);
+  char *url = node->url;
+  if (!url_filter(node))
+  {
+    free(node);
+    return NULL;
+  }
   CURL *curl;              // declaring handle
   CURLcode result;         // http status code
   curl = curl_easy_init(); // initialising handle
@@ -184,6 +189,7 @@ void *fetchurl(URLQueue *queue) // fetches url in response struct
     printf("REQUEST FAILED\n");
     free(response.string);
     curl_easy_cleanup(curl);
+    free(node);
     return NULL;
   }
 
@@ -197,6 +203,7 @@ void *fetchurl(URLQueue *queue) // fetches url in response struct
     printf("Error %s\n", curl_easy_strerror(result));
     free(response.string);
     curl_easy_cleanup(curl);
+    free(node);
     return NULL;
   }
 
@@ -204,6 +211,7 @@ void *fetchurl(URLQueue *queue) // fetches url in response struct
   extract_url(response.string, queue);
   free(response.string);
   free(url);
+  free(node);
   return NULL;
 }
 int hashing(char *url)
@@ -278,7 +286,7 @@ int main(int argc, char **argv)
 
   fetchurl(queue); // calling fetchurl on first argument
 
-  FILE *file = fopen("log.txt", "a+"); // "a" mode appends to the file if it exists, creates it if not
+  FILE *file = fopen("log.txt", "w+"); // "a" mode appends to the file if it exists, creates it if not
   if (file == NULL)
   {
     printf("Error opening file!\n");
@@ -287,15 +295,16 @@ int main(int argc, char **argv)
 
   while (queue->head != NULL)
   {
-    char *https = dequeue(queue);
-    logURL(file, https);
-    free(https);
+    URLQueueNode *node = dequeue(queue);
+    char *hhtps = node->url;
+    if (url_filter(node))
+      logURL(file, hhtps);
+    // printf("Main : %s\n", hhtps);
+    free(hhtps);
+    free(node);
   }
 
   fclose(file); // close the file
-
-  char *uurl = dequeue(queue);
-  free(uurl);
   free(queue);
 
   return EXIT_SUCCESS;
