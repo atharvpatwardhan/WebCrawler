@@ -36,21 +36,66 @@ int depth_limit;
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
 void initQueue(URLQueue *queue);
 char *dequeue(URLQueue *queue);
-void enqueue(URLQueue *queue, const char *url);
+void enqueue(URLQueueNode* newNode,URLQueue *queue);
 
 // Placeholder for the function to fetch and process a URL.
 void *fetch_url(void *url);
 
-URLQueueNode *creteURLQueueNode(char *url)
+
+URLQueueNode* createURLQueueNode(char* url)
 {
-  URLQueueNode *node = malloc(sizeof(URLQueueNode));
-  node->url = malloc(strlen(url) + 1);
-  strcpy(node->url, url);
+  URLQueueNode* node = malloc(sizeof(URLQueueNode));
+  node->url = malloc((strlen(url)+1)*sizeof(char));
+  strcpy(node->url,url);
+
   node->next = NULL;
   node->parent = NULL;
   node->depth = 0;
   return node;
 }
+
+URLQueue* createURLQueue()
+{
+  URLQueue* queue = malloc(sizeof(URLQueue));
+  queue->head = queue->tail = NULL;
+  pthread_mutex_init(&queue->lock, NULL);
+
+  return queue;
+
+}
+
+
+void enqueue(URLQueueNode *newNode,URLQueue *queue) {
+pthread_mutex_lock(&queue->lock);
+if (queue->tail) {
+queue->tail->next = newNode;
+} else {
+queue->head = newNode;
+}
+queue->tail = newNode;
+pthread_mutex_unlock(&queue->lock);
+}
+
+
+// Remove a URL from the queue.
+char *dequeue(URLQueue *queue) {
+pthread_mutex_lock(&queue->lock);
+if (queue->head == NULL) {
+pthread_mutex_unlock(&queue->lock);
+return NULL;
+}
+URLQueueNode *temp = queue->head;
+char *url = temp->url;
+queue->head = queue->head->next;
+if (queue->head == NULL) {
+queue->tail = NULL;
+}
+// printf("\nDequeue : %s",url);
+free(temp);
+pthread_mutex_unlock(&queue->lock);
+return url;
+}
+
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 {
@@ -69,7 +114,7 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
   return real_size;
 }
 
-void extract_url(char *html)
+void extract_url(char *html, URLQueue *queue)
 {
   char *sub;
   int i;
@@ -99,14 +144,20 @@ void extract_url(char *html)
       j++;
     }
     furl[i] = '\0';
-    printf("String: %s\n", furl);
+
+    URLQueueNode *newNode = createURLQueueNode(furl);
+    enqueue(newNode,queue);
+
     free(furl);
+
     html = html + (sizeof(char) * i);
-    extract_url(html);
+    extract_url(html,queue);
   }
 }
-void *fetchurl(char *url) // fetches url in response struct
+
+void *fetchurl(URLQueue *queue) // fetches url in response struct
 {
+  char *url = dequeue(queue);
   CURL *curl;              // declaring handle
   CURLcode result;         // http status code
   curl = curl_easy_init(); // initialising handle
@@ -137,8 +188,9 @@ void *fetchurl(char *url) // fetches url in response struct
 
   // printf("%s\n", response.string);
   curl_easy_cleanup(curl);
-  extract_url(response.string);
+  extract_url(response.string, queue);
   free(response.string);
+  free(url);
   return NULL;
 }
 int hashing(char *url)
@@ -180,14 +232,34 @@ bool url_filter(URLQueueNode *node)
 
 int main(int argc, char **argv)
 {
+
+  URLQueue *queue = createURLQueue();
+
   if (argc < 2)
   {
     printf("not enough args\n");
     return EXIT_SUCCESS;
   }
   char *url = argv[1]; // setting url as the first argument
+
   seed_domain = argv[1];
   depth_limit = 5;
-  fetchurl(argv[1]); // calling fetchurl on first argument
+  
+  URLQueueNode *firstNode = createURLQueueNode(url);
+  enqueue(firstNode,queue);
+  // printf("%s\n", url);
+
+  fetchurl(queue); // calling fetchurl on first argument
+
+  while(queue->head != NULL){
+    char *hhtps = dequeue(queue); 
+    printf("Main : %s\n",hhtps);
+    free(hhtps);
+  }
+
+  char *uurl = dequeue(queue);
+  free(uurl);
+  free(queue);
+  
   return EXIT_SUCCESS;
 }
