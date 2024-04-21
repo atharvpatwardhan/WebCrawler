@@ -39,10 +39,6 @@ void *fetch_url(void *url);
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 {
-<<<<<<< HEAD
-  size_t real_size = size * nmemb; 
-  Response *response = (Response *) userdata;  
-=======
   size_t real_size = size * nmemb;
 
   // The function prototype requires the 4th parameter to be a void pointer, but
@@ -53,31 +49,22 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
   // struct string member to point to... we increase the size of the block of
   // memory by the existing size PLUS the size of the chunk and 1 more byte to
   // store the null terminator.
->>>>>>> 5353c675bda381f86f8968255a3d90b8b6048ff8
   char *ptr = realloc(response->string, response->size + real_size + 1);
 
   if (ptr == NULL)
   {
     return 0;
   }
-<<<<<<< HEAD
-  response->string = ptr;
-=======
 
   response->string = ptr;
 
->>>>>>> 5353c675bda381f86f8968255a3d90b8b6048ff8
   memcpy(&(response->string[response->size]), data, real_size);
   response->size += real_size;
-<<<<<<< HEAD
-  response->string[response->size] = '\0';
-=======
 
   // Set the last character of the block of memory for the string to the null
   response->string[response->size] = '\0';
 
   // Return the size of the chunk in bytes as required by libcurl
->>>>>>> 5353c675bda381f86f8968255a3d90b8b6048ff8
   return real_size;
 }
 
@@ -86,15 +73,10 @@ void extract_url(char *html)
   char *sub;
   int i;
   int j;
-<<<<<<< HEAD
-  sub = strstr(html,"href=\"http");
-  if(sub == NULL){
-=======
   sub = strstr(html, "href=\"http");
   if (sub == NULL)
   {
     printf("Boo hoo not working\n"); // implement while or remove entirely
->>>>>>> 5353c675bda381f86f8968255a3d90b8b6048ff8
     return;
   }
   else
@@ -115,15 +97,10 @@ void extract_url(char *html)
       furl[j] = sub[j + 6];
       j++;
     }
-<<<<<<< HEAD
-    furl[i]='\0';
-    printf("String: %s\n",furl);
-=======
     furl[i] = '\0';
     /*char *surl= malloc(sizeof(char)*(i+1+7));
     strcat("http://",);*/
     printf("String: %s\n", furl);
->>>>>>> 5353c675bda381f86f8968255a3d90b8b6048ff8
     free(furl);
     html = html + (sizeof(char) * i);
     extract_url(html);
