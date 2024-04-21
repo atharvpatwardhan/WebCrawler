@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <curl/curl.h>
+#include <stdbool.h>
 
 // Okay
 // Define a structure for queue elements.
@@ -29,6 +30,9 @@ typedef struct // Declaring Response struct
   size_t size;
 } Response;
 
+char *seed_domain;
+int depth_limit;
+
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
 void initQueue(URLQueue *queue);
 char *dequeue(URLQueue *queue);
@@ -37,11 +41,13 @@ void enqueue(URLQueueNode* newNode,URLQueue *queue);
 // Placeholder for the function to fetch and process a URL.
 void *fetch_url(void *url);
 
+
 URLQueueNode* createURLQueueNode(char* url)
 {
   URLQueueNode* node = malloc(sizeof(URLQueueNode));
   node->url = malloc((strlen(url)+1)*sizeof(char));
   strcpy(node->url,url);
+
   node->next = NULL;
   node->parent = NULL;
   node->depth = 0;
@@ -91,8 +97,6 @@ return url;
 }
 
 
-
-
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 {
   size_t real_size = size * nmemb;
@@ -118,7 +122,7 @@ void extract_url(char *html, URLQueue *queue)
   sub = strstr(html, "href=\"http");
   if (sub == NULL)
   {
-    //printf("Boo hoo not working\n"); // implement while or remove entirely
+    // printf("Boo hoo not working\n"); // implement while or remove entirely
     return;
   }
   else
@@ -206,6 +210,26 @@ void logURL(const char *url)
 
   fclose(file); // close the file
 }
+bool url_filter(URLQueueNode *node)
+{
+  if (strstr(node->url, seed_domain) != NULL)
+  {
+    // Check if the depth is less than depth_limit
+    if (node->depth < depth_limit)
+    {
+      return true; // URL is valid
+    }
+    else
+    {
+      return false; // URL depth exceeds limit
+    }
+  }
+  else
+  {
+    return false; // URL does not belong to seed domain
+  }
+}
+
 int main(int argc, char **argv)
 {
 
@@ -216,8 +240,11 @@ int main(int argc, char **argv)
     printf("not enough args\n");
     return EXIT_SUCCESS;
   }
-
   char *url = argv[1]; // setting url as the first argument
+
+  seed_domain = argv[1];
+  depth_limit = 5;
+  
   URLQueueNode *firstNode = createURLQueueNode(url);
   enqueue(firstNode,queue);
   // printf("%s\n", url);
@@ -233,5 +260,6 @@ int main(int argc, char **argv)
   char *uurl = dequeue(queue);
   free(uurl);
   free(queue);
+  
   return EXIT_SUCCESS;
 }
