@@ -84,7 +84,7 @@ queue->head = queue->head->next;
 if (queue->head == NULL) {
 queue->tail = NULL;
 }
-printf("\nDequeue : %s",url);
+// printf("\nDequeue : %s",url);
 free(temp);
 pthread_mutex_unlock(&queue->lock);
 return url;
@@ -146,22 +146,14 @@ void extract_url(char *html, URLQueue *queue)
 
     free(furl);
 
-    char *newurl = dequeue(queue);
-    printf("%s",newurl);
-    free(newurl);
-
-
-
-
-
-
     html = html + (sizeof(char) * i);
     extract_url(html,queue);
   }
 }
 
-void *fetchurl(char *url,URLQueue *queue) // fetches url in response struct
+void *fetchurl(URLQueue *queue) // fetches url in response struct
 {
+  char *url = dequeue(queue);
   CURL *curl;              // declaring handle
   CURLcode result;         // http status code
   curl = curl_easy_init(); // initialising handle
@@ -194,6 +186,7 @@ void *fetchurl(char *url,URLQueue *queue) // fetches url in response struct
   curl_easy_cleanup(curl);
   extract_url(response.string, queue);
   free(response.string);
+  free(url);
   return NULL;
 }
 int hashing (char* url)
@@ -214,10 +207,20 @@ int main(int argc, char **argv)
   }
 
   char *url = argv[1]; // setting url as the first argument
-  printf("%s\n", url);
+  URLQueueNode *firstNode = createURLQueueNode(url);
+  enqueue(firstNode,queue);
+  // printf("%s\n", url);
 
-  fetchurl(argv[1],queue); // calling fetchurl on first argument
+  fetchurl(queue); // calling fetchurl on first argument
 
+  while(queue->head != NULL){
+    char *hhtps = dequeue(queue); 
+    printf("Main : %s\n",hhtps);
+    free(hhtps);
+  }
+
+  char *uurl = dequeue(queue);
+  free(uurl);
   free(queue);
   return EXIT_SUCCESS;
 }
