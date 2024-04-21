@@ -37,6 +37,11 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
 void initQueue(URLQueue *queue);
 URLQueueNode *dequeue(URLQueue *queue);
 void enqueue(URLQueueNode *newNode, URLQueue *queue);
+URLQueueNode *createURLQueueNode(char *url);
+URLQueue *createURLQueue();
+void extract_url(char *html, URLQueue *queue);
+int hashing(char *url);
+void logURL(FILE *file, const char *url);
 bool url_filter(URLQueueNode *node);
 
 // Placeholder for the function to fetch and process a URL.
@@ -53,6 +58,12 @@ URLQueueNode *createURLQueueNode(char *url)
   node->depth = 0;
   return node;
 }
+URLQueueNode** createVisitorlist(int size)
+{
+  URLQueueNode** vlist = malloc(sizeof(URLQueueNode*)*size);
+  return vlist;
+}
+
 
 URLQueue *createURLQueue()
 {
@@ -93,7 +104,9 @@ URLQueueNode *dequeue(URLQueue *queue)
   {
     queue->tail = NULL;
   }
+
   // printf("\nDequeue : %s",url);
+
   pthread_mutex_unlock(&queue->lock);
   return temp;
 }
@@ -123,7 +136,6 @@ void extract_url(char *html, URLQueue *queue)
   sub = strstr(html, "href=\"http");
   if (sub == NULL)
   {
-    // printf("Boo hoo not working\n"); // implement while or remove entirely
     return;
   }
   else
@@ -195,7 +207,6 @@ void *fetchurl(URLQueue *queue) // fetches url in response struct
     return NULL;
   }
 
-  // printf("%s\n", response.string);
   curl_easy_cleanup(curl);
   extract_url(response.string, queue);
   free(response.string);
@@ -231,6 +242,30 @@ bool url_filter(URLQueueNode *node)
   }
 }
 
+
+bool visited(char *url)
+{
+  int index = hashing(url);
+  printf("%d",index);
+}
+void vistor(char *url,URLQueueNode** list)
+{
+  int index = hashing(url);
+  URLQueueNode* node = createURLQueueNode(url);
+  if (URLQueueNode[index]!=NULL)
+    {
+      URLQueueNode[index] = node;
+    }
+  else
+    {
+      
+    }
+  
+}
+void delete_visitor_list()
+{
+}
+
 int main(int argc, char **argv)
 {
 
@@ -248,7 +283,6 @@ int main(int argc, char **argv)
 
   URLQueueNode *firstNode = createURLQueueNode(url);
   enqueue(firstNode, queue);
-  // printf("%s\n", url);
 
   fetchurl(queue); // calling fetchurl on first argument
 
