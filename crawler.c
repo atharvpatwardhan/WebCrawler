@@ -59,6 +59,12 @@ URLQueueNode *createURLQueueNode(char *url)
   node->depth = 0;
   return node;
 }
+URLQueueNode** createVisitorlist(int size)
+{
+  URLQueueNode** vlist = malloc(sizeof(URLQueueNode*)*size);
+  return vlist;
+}
+
 
 URLQueue *createURLQueue()
 {
@@ -226,6 +232,30 @@ bool url_filter(URLQueueNode *node)
   {
     return false; // URL does not belong to seed domain
   }
+}
+
+
+bool visited(char *url)
+{
+  int index = hashing(url);
+  printf("%d",index);
+}
+void vistor(char *url,URLQueueNode** list)
+{
+  int index = hashing(url);
+  URLQueueNode* node = createURLQueueNode(url);
+  if (URLQueueNode[index]!=NULL)
+    {
+      URLQueueNode[index] = node;
+    }
+  else
+    {
+      
+    }
+  
+}
+void delete_visitor_list()
+{
 }
 
 int main(int argc, char **argv)
