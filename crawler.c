@@ -142,12 +142,23 @@ void *fetchurl(char *url) // fetches url in response struct
   free(response.string);
   return NULL;
 }
-int hashing (char* url)
+int hashing(char *url)
 {
-  return strlen(url)%100;
+  return strlen(url) % 100;
 }
+void logURL(const char *url)
+{
+  FILE *file = fopen("log.txt", "a+"); // "a" mode appends to the file if it exists, creates it if not
+  if (file == NULL)
+  {
+    printf("Error opening file!\n");
+    return;
+  }
 
+  fprintf(file, "%s\n", url); // write the URL to the file
 
+  fclose(file); // close the file
+}
 int main(int argc, char **argv)
 {
   if (argc < 2)
