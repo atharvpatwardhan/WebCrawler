@@ -41,35 +41,17 @@ void *fetch_url(void *url);
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 {
   size_t real_size = size * nmemb; 
-  
-  // The function prototype requires the 4th parameter to be a void pointer, but
-  // WE know it's really a pointer to a Response struct so we type cast it here.
-  Response *response = (Response *) userdata; 
-  
-  // Attempt to reallocate space for a larger block of memory for the Response 
-  // struct string member to point to... we increase the size of the block of 
-  // memory by the existing size PLUS the size of the chunk and 1 more byte to
-  // store the null terminator.
+  Response *response = (Response *) userdata;  
   char *ptr = realloc(response->string, response->size + real_size + 1);
 
   if (ptr == NULL)
   {
     return 0;
   }
-  
   response->string = ptr;
-  
-
   memcpy(&(response->string[response->size]), data, real_size);
-
-  // Add the size of the chunk to the size member to keep track of the size of
-  // the string received.
   response->size += real_size;
-
-  // Set the last character of the block of memory for the string to the null 
   response->string[response->size] = '\0';
-   
-  // Return the size of the chunk in bytes as required by libcurl
   return real_size;
 }
 
@@ -80,7 +62,6 @@ void extract_url(char *html){
   int j;
   sub = strstr(html,"href=\"http");
   if(sub == NULL){
-    printf("Boo hoo not working\n");
     return;
       }
   else{
@@ -101,8 +82,6 @@ void extract_url(char *html){
       j++;
     }
     furl[i]='\0';
-    /*char *surl= malloc(sizeof(char)*(i+1+7));
-    strcat("http://",);*/
     printf("String: %s\n",furl);
     free(furl);
     html = html+(sizeof(char)*i);
@@ -152,6 +131,11 @@ void *fetchurl(char *url)
     free(response.string);
     return NULL;
 }
+int hashing (char* url)
+{
+  return strlen(url)%100;
+}
+
 
 int main(int argc, char ** argv)
 {
