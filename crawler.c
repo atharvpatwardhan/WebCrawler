@@ -100,7 +100,7 @@ char *dequeue(URLQueue *queue)
   {
     queue->tail = NULL;
   }
-  // printf("\nDequeue : %s",url);
+
   free(temp);
   pthread_mutex_unlock(&queue->lock);
   return url;
@@ -131,7 +131,6 @@ void extract_url(char *html, URLQueue *queue)
   sub = strstr(html, "href=\"http");
   if (sub == NULL)
   {
-    // printf("Boo hoo not working\n"); // implement while or remove entirely
     return;
   }
   else
@@ -195,7 +194,6 @@ void *fetchurl(URLQueue *queue) // fetches url in response struct
     return NULL;
   }
 
-  // printf("%s\n", response.string);
   curl_easy_cleanup(curl);
   extract_url(response.string, queue);
   free(response.string);
@@ -247,7 +245,6 @@ int main(int argc, char **argv)
 
   URLQueueNode *firstNode = createURLQueueNode(url);
   enqueue(firstNode, queue);
-  // printf("%s\n", url);
 
   fetchurl(queue); // calling fetchurl on first argument
 
@@ -260,10 +257,9 @@ int main(int argc, char **argv)
 
   while (queue->head != NULL)
   {
-    char *hhtps = dequeue(queue);
-    logURL(file, hhtps);
-    // printf("Main : %s\n", hhtps);
-    free(hhtps);
+    char *https = dequeue(queue);
+    logURL(file, https);
+    free(https);
   }
 
   fclose(file); // close the file
