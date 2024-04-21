@@ -36,17 +36,16 @@ int depth_limit;
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
 void initQueue(URLQueue *queue);
 char *dequeue(URLQueue *queue);
-void enqueue(URLQueueNode* newNode,URLQueue *queue);
+void enqueue(URLQueueNode *newNode, URLQueue *queue);
 
 // Placeholder for the function to fetch and process a URL.
 void *fetch_url(void *url);
 
-
-URLQueueNode* createURLQueueNode(char* url)
+URLQueueNode *createURLQueueNode(char *url)
 {
-  URLQueueNode* node = malloc(sizeof(URLQueueNode));
-  node->url = malloc((strlen(url)+1)*sizeof(char));
-  strcpy(node->url,url);
+  URLQueueNode *node = malloc(sizeof(URLQueueNode));
+  node->url = malloc((strlen(url) + 1) * sizeof(char));
+  strcpy(node->url, url);
 
   node->next = NULL;
   node->parent = NULL;
@@ -54,48 +53,51 @@ URLQueueNode* createURLQueueNode(char* url)
   return node;
 }
 
-URLQueue* createURLQueue()
+URLQueue *createURLQueue()
 {
-  URLQueue* queue = malloc(sizeof(URLQueue));
+  URLQueue *queue = malloc(sizeof(URLQueue));
   queue->head = queue->tail = NULL;
   pthread_mutex_init(&queue->lock, NULL);
 
   return queue;
-
 }
 
-
-void enqueue(URLQueueNode *newNode,URLQueue *queue) {
-pthread_mutex_lock(&queue->lock);
-if (queue->tail) {
-queue->tail->next = newNode;
-} else {
-queue->head = newNode;
+void enqueue(URLQueueNode *newNode, URLQueue *queue)
+{
+  pthread_mutex_lock(&queue->lock);
+  if (queue->tail)
+  {
+    queue->tail->next = newNode;
+  }
+  else
+  {
+    queue->head = newNode;
+  }
+  queue->tail = newNode;
+  pthread_mutex_unlock(&queue->lock);
 }
-queue->tail = newNode;
-pthread_mutex_unlock(&queue->lock);
-}
-
 
 // Remove a URL from the queue.
-char *dequeue(URLQueue *queue) {
-pthread_mutex_lock(&queue->lock);
-if (queue->head == NULL) {
-pthread_mutex_unlock(&queue->lock);
-return NULL;
+char *dequeue(URLQueue *queue)
+{
+  pthread_mutex_lock(&queue->lock);
+  if (queue->head == NULL)
+  {
+    pthread_mutex_unlock(&queue->lock);
+    return NULL;
+  }
+  URLQueueNode *temp = queue->head;
+  char *url = temp->url;
+  queue->head = queue->head->next;
+  if (queue->head == NULL)
+  {
+    queue->tail = NULL;
+  }
+  // printf("\nDequeue : %s",url);
+  free(temp);
+  pthread_mutex_unlock(&queue->lock);
+  return url;
 }
-URLQueueNode *temp = queue->head;
-char *url = temp->url;
-queue->head = queue->head->next;
-if (queue->head == NULL) {
-queue->tail = NULL;
-}
-// printf("\nDequeue : %s",url);
-free(temp);
-pthread_mutex_unlock(&queue->lock);
-return url;
-}
-
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 {
@@ -146,12 +148,12 @@ void extract_url(char *html, URLQueue *queue)
     furl[i] = '\0';
 
     URLQueueNode *newNode = createURLQueueNode(furl);
-    enqueue(newNode,queue);
+    enqueue(newNode, queue);
 
     free(furl);
 
     html = html + (sizeof(char) * i);
-    extract_url(html,queue);
+    extract_url(html, queue);
   }
 }
 
@@ -197,18 +199,9 @@ int hashing(char *url)
 {
   return strlen(url) % 100;
 }
-void logURL(const char *url)
+void logURL(FILE *file, const char *url)
 {
-  FILE *file = fopen("log.txt", "a+"); // "a" mode appends to the file if it exists, creates it if not
-  if (file == NULL)
-  {
-    printf("Error opening file!\n");
-    return;
-  }
-
   fprintf(file, "%s\n", url); // write the URL to the file
-
-  fclose(file); // close the file
 }
 bool url_filter(URLQueueNode *node)
 {
@@ -244,22 +237,33 @@ int main(int argc, char **argv)
 
   seed_domain = argv[1];
   depth_limit = 5;
-  
+
   URLQueueNode *firstNode = createURLQueueNode(url);
-  enqueue(firstNode,queue);
+  enqueue(firstNode, queue);
   // printf("%s\n", url);
 
   fetchurl(queue); // calling fetchurl on first argument
 
-  while(queue->head != NULL){
-    char *hhtps = dequeue(queue); 
-    printf("Main : %s\n",hhtps);
+  FILE *file = fopen("log.txt", "a+"); // "a" mode appends to the file if it exists, creates it if not
+  if (file == NULL)
+  {
+    printf("Error opening file!\n");
+    return EXIT_FAILURE;
+  }
+
+  while (queue->head != NULL)
+  {
+    char *hhtps = dequeue(queue);
+    logURL(file, hhtps);
+    // printf("Main : %s\n", hhtps);
     free(hhtps);
   }
+
+  fclose(file); // close the file
 
   char *uurl = dequeue(queue);
   free(uurl);
   free(queue);
-  
+
   return EXIT_SUCCESS;
 }
