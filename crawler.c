@@ -37,6 +37,13 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
 void initQueue(URLQueue *queue);
 char *dequeue(URLQueue *queue);
 void enqueue(URLQueueNode *newNode, URLQueue *queue);
+URLQueueNode *createURLQueueNode(char *url);
+URLQueue *createURLQueue();
+void extract_url(char *html, URLQueue *queue);
+int hashing(char *url);
+void logURL(FILE *file, const char *url);
+bool url_filter(URLQueueNode *node);
+
 
 // Placeholder for the function to fetch and process a URL.
 void *fetch_url(void *url);
