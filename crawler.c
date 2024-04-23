@@ -135,13 +135,16 @@ void delete_queue(URLQueue* queue)
 URLQueueNode** create_visitor_list(int size)
 {
   URLQueueNode** vlist = malloc(sizeof(URLQueueNode*)*size);
+  for(int i=0;i<size;i++)
+    {
+      vlist[i] = NULL;
+    }
   return vlist;
 }
 
 bool check_visited(char *url, URLQueueNode** list)
 {
   int index = hashing(url);
-  printf("%d",index);
   URLQueueNode* N = list[index];
   while(N!=NULL)
     {
@@ -159,7 +162,7 @@ void add_list_node(char *url,URLQueueNode** list)
   int index = hashing(url);
   URLQueueNode* node = createURLQueueNode(url);
   URLQueueNode* N;
-  if (list[index]!=NULL)
+  if (list[index]==NULL)
     {
       list[index] = node;
     }
@@ -191,6 +194,7 @@ void delete_list(URLQueueNode** list)
 	    }
 	}
     }
+  free(list);
 }
 
 bool url_filter(URLQueueNode *node) //implement crawler policies here
@@ -232,6 +236,11 @@ void extract_url(char *html, URLQueue *queue,URLQueueNode* parent ) //pass paren
 
     URLQueueNode *newNode = createURLQueueNode(furl);
     newNode->depth = parent->depth+1;
+    if (!url_filter(newNode))
+    {
+      delete_node(newNode);
+      return;
+    }
     enqueue(newNode, queue);
 
     free(furl);
@@ -265,16 +274,16 @@ int fetchurl(URLQueue *queue,FILE* file, URLQueueNode** list) // fetches url in 
       return -1;
     }
   char *url = node->url;
-  if (!url_filter(node))
+  /* if (!url_filter(node))
   {
     delete_node(node);
     return -1;
-  }
-  /*if(check_visited(node->url,list))
+    }*/
+  if(check_visited(node->url,list))
     {
       delete_node(node);
       return 1;
-      }*/
+    }
   CURL *curl;              // declaring handle
   CURLcode result;         // http status code
   curl = curl_easy_init(); // initialising handle
@@ -304,8 +313,9 @@ int fetchurl(URLQueue *queue,FILE* file, URLQueueNode** list) // fetches url in 
     delete_node(node);
     return 0;
   }
-  logURL(file, node->url);
-  //add_list_node(node->url,list);
+  printf("%s\n",node->url);
+  //logURL(file, node->url);
+  add_list_node(node->url,list);
   curl_easy_cleanup(curl);
   extract_url(response.string, queue,node);
   free(response.string);
