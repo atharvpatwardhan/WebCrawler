@@ -16,6 +16,7 @@ typedef struct URLQueueNode
   int depth;
 } URLQueueNode;
 
+
 // Define a structure for a thread-safe queue.
 typedef struct
 {
@@ -209,6 +210,14 @@ void extract_url(char *html, URLQueue *queue,URLQueueNode* parent ) //pass paren
   char *sub;
   int i;
   int j;
+  if(html==NULL)
+    {
+      return;
+    }
+  if(strlen(html)<5)
+    {
+      return;
+    }
   sub = strstr(html, "href=\"http");
   if (sub == NULL)
   {
@@ -239,6 +248,7 @@ void extract_url(char *html, URLQueue *queue,URLQueueNode* parent ) //pass paren
     if (!url_filter(newNode))
     {
       delete_node(newNode);
+      free(furl);
       return;
     }
     enqueue(newNode, queue);
@@ -273,12 +283,9 @@ int fetchurl(URLQueue *queue,FILE* file, URLQueueNode** list) // fetches url in 
     {
       return -1;
     }
+
   char *url = node->url;
-  /* if (!url_filter(node))
-  {
-    delete_node(node);
-    return -1;
-    }*/
+  
   if(check_visited(node->url,list))
     {
       delete_node(node);
@@ -313,6 +320,15 @@ int fetchurl(URLQueue *queue,FILE* file, URLQueueNode** list) // fetches url in 
     delete_node(node);
     return 0;
   }
+  if (response.size<5)
+    {
+    free(response.string);
+    curl_easy_cleanup(curl);
+    delete_node(node);
+      return 0;
+    }
+  
+  
   printf("%s\n",node->url);
   //logURL(file, node->url);
   add_list_node(node->url,list);

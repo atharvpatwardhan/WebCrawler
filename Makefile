@@ -11,7 +11,3 @@ clean:
 
 run: crawler
 	./crawler.o https://sitecorediaries.org/tag/dummy-website/
-	
-	
-
-
