@@ -13,7 +13,6 @@ typedef struct URLQueueNode
 {
   char *url;
   struct URLQueueNode *next;
-  struct URLQueueNode *parent;
   int depth;
 } URLQueueNode;
 
@@ -30,7 +29,6 @@ typedef struct // Declaring Response struct
   size_t size;
 } Response;
 
-char *seed_domain;
 int depth_limit;
 
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
@@ -39,31 +37,37 @@ URLQueueNode *dequeue(URLQueue *queue);
 void enqueue(URLQueueNode *newNode, URLQueue *queue);
 URLQueueNode *createURLQueueNode(char *url);
 URLQueue *createURLQueue();
-void extract_url(char *html, URLQueue *queue);
+void extract_url(char *html, URLQueue *queue, URLQueueNode* parent);
 int hashing(char *url);
 void logURL(FILE *file, const char *url);
 bool url_filter(URLQueueNode *node);
+void *fetch_url(void *url,FILE* file, URLQueueNode** list);
 
-// Placeholder for the function to fetch and process a URL.
-void *fetch_url(void *url);
+URLQueueNode** create_visitor_list(int size);
+void add_list_node(char *url,URLQueueNode** list);
+void delete_list(URLQueueNode** list);
+
+
+int hashing(char *url)
+{
+  return strlen(url) % 100;
+}
+void logURL(FILE *file, const char *url)
+{
+  fprintf(file, "%s\n", url); // write the URL to the file
+}
+
+
 
 URLQueueNode *createURLQueueNode(char *url)
 {
   URLQueueNode *node = malloc(sizeof(URLQueueNode));
   node->url = malloc((strlen(url) + 1) * sizeof(char));
   strcpy(node->url, url);
-
   node->next = NULL;
-  node->parent = NULL;
   node->depth = 0;
   return node;
 }
-URLQueueNode** createVisitorlist(int size)
-{
-  URLQueueNode** vlist = malloc(sizeof(URLQueueNode*)*size);
-  return vlist;
-}
-
 
 URLQueue *createURLQueue()
 {
@@ -77,7 +81,7 @@ URLQueue *createURLQueue()
 void enqueue(URLQueueNode *newNode, URLQueue *queue)
 {
   pthread_mutex_lock(&queue->lock);
-  if (queue->tail)
+  if (queue->tail!=NULL)
   {
     queue->tail->next = newNode;
   }
@@ -99,36 +103,104 @@ URLQueueNode *dequeue(URLQueue *queue)
     return NULL;
   }
   URLQueueNode *temp = queue->head;
+  //printf("deque: try temp url %s\n",temp->url);
   queue->head = queue->head->next;
   if (queue->head == NULL)
   {
     queue->tail = NULL;
   }
 
-  // printf("\nDequeue : %s",url);
-
   pthread_mutex_unlock(&queue->lock);
   return temp;
 }
-
-size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
+void delete_node(URLQueueNode* node)
 {
-  size_t real_size = size * nmemb;
-  Response *response = (Response *)userdata;
-  char *ptr = realloc(response->string, response->size + real_size + 1);
-
-  if (ptr == NULL)
-  {
-    return 0;
-  }
-  response->string = ptr;
-  memcpy(&(response->string[response->size]), data, real_size);
-  response->size += real_size;
-  response->string[response->size] = '\0';
-  return real_size;
+  free(node->url);
+  free(node);
+}
+void delete_queue(URLQueue* queue)
+{
+  URLQueueNode *node = dequeue(queue);
+  while(node!=NULL)
+    {
+      delete_node(node);
+      node=dequeue(queue);
+    }
 }
 
-void extract_url(char *html, URLQueue *queue)
+
+
+
+
+URLQueueNode** create_visitor_list(int size)
+{
+  URLQueueNode** vlist = malloc(sizeof(URLQueueNode*)*size);
+  return vlist;
+}
+
+bool check_visited(char *url, URLQueueNode** list)
+{
+  int index = hashing(url);
+  printf("%d",index);
+  URLQueueNode* N = list[index];
+  while(N!=NULL)
+    {
+      if(strcmp(url,N->url)==0)
+	{
+	  return true;
+	}
+      N = N->next;
+    }
+  return false;
+}
+
+void add_list_node(char *url,URLQueueNode** list)
+{
+  int index = hashing(url);
+  URLQueueNode* node = createURLQueueNode(url);
+  URLQueueNode* N;
+  if (list[index]!=NULL)
+    {
+      list[index] = node;
+    }
+  else
+    {
+      N = list[index];
+      while(N->next!=NULL)
+	{
+	  N = N->next;
+	}
+      N->next = node;
+    }  
+}
+
+void delete_list(URLQueueNode** list)
+{
+  URLQueueNode* current;
+  URLQueueNode* next;
+  for(int i=0;i<100;i++)
+    {
+      if(list[i]!=NULL)
+	{
+	  current = list[i];
+	  while(current!=NULL)
+	    {
+	      next = current->next;
+	      delete_node(current);
+	      current=next;
+	    }
+	}
+    }
+}
+
+bool url_filter(URLQueueNode *node) //implement crawler policies here
+{
+  if (node->depth < depth_limit)
+    return true; // URL is valid
+  else
+    return false; // URL depth exceeds limit
+}
+void extract_url(char *html, URLQueue *queue,URLQueueNode* parent ) //pass parent
 {
   char *sub;
   int i;
@@ -159,24 +231,50 @@ void extract_url(char *html, URLQueue *queue)
     furl[i] = '\0';
 
     URLQueueNode *newNode = createURLQueueNode(furl);
+    newNode->depth = parent->depth+1;
     enqueue(newNode, queue);
 
     free(furl);
 
     html = html + (sizeof(char) * i);
-    extract_url(html, queue);
+    extract_url(html, queue,parent);
   }
 }
-
-void *fetchurl(URLQueue *queue) // fetches url in response struct
+size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 {
+  size_t real_size = size * nmemb;
+  Response *response = (Response *)userdata;
+  char *ptr = realloc(response->string, response->size + real_size + 1);
+
+  if (ptr == NULL)
+  {
+    return 0;
+  }
+  response->string = ptr;
+  memcpy(&(response->string[response->size]), data, real_size);
+  response->size += real_size;
+  response->string[response->size] = '\0';
+  return real_size;
+}
+int fetchurl(URLQueue *queue,FILE* file, URLQueueNode** list) // fetches url in response struct
+{
+  //-1 to end;  0 for failed get request; 1 for continue
   URLQueueNode *node = dequeue(queue);
+  if(node==NULL)
+    {
+      return -1;
+    }
   char *url = node->url;
   if (!url_filter(node))
   {
-    free(node);
-    return NULL;
+    delete_node(node);
+    return -1;
   }
+  /*if(check_visited(node->url,list))
+    {
+      delete_node(node);
+      return 1;
+      }*/
   CURL *curl;              // declaring handle
   CURLcode result;         // http status code
   curl = curl_easy_init(); // initialising handle
@@ -189,8 +287,8 @@ void *fetchurl(URLQueue *queue) // fetches url in response struct
     printf("REQUEST FAILED\n");
     free(response.string);
     curl_easy_cleanup(curl);
-    free(node);
-    return NULL;
+    delete_node(node);
+    return 0;
   }
 
   curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -203,68 +301,18 @@ void *fetchurl(URLQueue *queue) // fetches url in response struct
     printf("Error %s\n", curl_easy_strerror(result));
     free(response.string);
     curl_easy_cleanup(curl);
-    free(node);
-    return NULL;
+    delete_node(node);
+    return 0;
   }
-
+  logURL(file, node->url);
+  //add_list_node(node->url,list);
   curl_easy_cleanup(curl);
-  extract_url(response.string, queue);
+  extract_url(response.string, queue,node);
   free(response.string);
-  free(url);
-  free(node);
-  return NULL;
-}
-int hashing(char *url)
-{
-  return strlen(url) % 100;
-}
-void logURL(FILE *file, const char *url)
-{
-  fprintf(file, "%s\n", url); // write the URL to the file
-}
-bool url_filter(URLQueueNode *node)
-{
-  if (strstr(node->url, seed_domain) != NULL)
-  {
-    // Check if the depth is less than depth_limit
-    if (node->depth < depth_limit)
-    {
-      return true; // URL is valid
-    }
-    else
-    {
-      return false; // URL depth exceeds limit
-    }
-  }
-  else
-  {
-    return false; // URL does not belong to seed domain
-  }
+  delete_node(node);
+  return 1;
 }
 
-
-bool visited(char *url)
-{
-  int index = hashing(url);
-  printf("%d",index);
-}
-void vistor(char *url,URLQueueNode** list)
-{
-  int index = hashing(url);
-  URLQueueNode* node = createURLQueueNode(url);
-  if (URLQueueNode[index]!=NULL)
-    {
-      URLQueueNode[index] = node;
-    }
-  else
-    {
-      
-    }
-  
-}
-void delete_visitor_list()
-{
-}
 
 int main(int argc, char **argv)
 {
@@ -276,34 +324,27 @@ int main(int argc, char **argv)
     printf("not enough args\n");
     return EXIT_SUCCESS;
   }
+  
   char *url = argv[1]; // setting url as the first argument
-
-  seed_domain = argv[1];
-  depth_limit = 5;
+  depth_limit = 2;
 
   URLQueueNode *firstNode = createURLQueueNode(url);
+  firstNode->depth = 0;
   enqueue(firstNode, queue);
-
-  fetchurl(queue); // calling fetchurl on first argument
-
-  FILE *file = fopen("log.txt", "w+"); // "a" mode appends to the file if it exists, creates it if not
+  FILE *file = fopen("log.txt", "w+"); 
   if (file == NULL)
   {
     printf("Error opening file!\n");
     return EXIT_FAILURE;
   }
 
-  while (queue->head != NULL)
-  {
-    URLQueueNode *node = dequeue(queue);
-    char *hhtps = node->url;
-    if (url_filter(node))
-      logURL(file, hhtps);
-    // printf("Main : %s\n", hhtps);
-    free(hhtps);
-    free(node);
-  }
-
+  URLQueueNode** list = create_visitor_list(100);
+  
+  while(fetchurl(queue,file,list)!=-1)
+    {
+    }
+  delete_queue(queue);
+  delete_list(list);
   fclose(file); // close the file
   free(queue);
 

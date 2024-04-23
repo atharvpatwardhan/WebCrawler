@@ -10,7 +10,7 @@ clean:
 	rm -f crawler.o *~
 
 run: crawler
-	./crawler.o https://en.wikipedia.org/wiki/India
+	./crawler.o https://sitecorediaries.org/tag/dummy-website/
 	
 	
 
