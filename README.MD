@@ -32,6 +32,7 @@ Step by step guide to design and implment Webcrawler
 11> 	final testing.
 
 API
+
 typedef struct URLQueueNode
 {
   char *url;
