@@ -30,4 +30,63 @@ Step by step guide to design and implment Webcrawler
 10>	Handle errors
 
 11> 	final testing.
-  	
+
+API
+typedef struct URLQueueNode
+{
+  char *url;
+  struct URLQueueNode *next;
+  int depth;
+} URLQueueNode;
+
+
+// Define a structure for a thread-safe queue.
+typedef struct
+{
+  URLQueueNode *head, *tail;
+  pthread_mutex_t lock;
+} URLQueue;
+
+typedef struct // Declaring Response struct
+{
+  char *string;
+  size_t size;
+} Response;
+
+int depth_limit;
+
+int hashing(char *url);
+
+
+void initQueue(URLQueue *queue);
+
+URLQueueNode *dequeue(URLQueue *queue);
+
+void enqueue(URLQueueNode *newNode, URLQueue *queue);
+
+
+URLQueueNode *createURLQueueNode(char *url);
+
+
+URLQueue *createURLQueue();
+
+
+void extract_url(char *html, URLQueue *queue, URLQueueNode* parent);
+
+bool url_filter(URLQueueNode *node);
+
+void *fetch_url(void *url,FILE* file, URLQueueNode** list);
+
+size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
+
+void logURL(FILE *file, const char *url);
+
+
+
+URLQueueNode** create_visitor_list(int size);
+
+void add_list_node(char *url,URLQueueNode** list);
+
+void delete_list(URLQueueNode** list);
+
+
