@@ -32,17 +32,20 @@ typedef struct // Declaring Response struct
 
 int depth_limit;
 
-size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
+int hashing(char *url);
+
 void initQueue(URLQueue *queue);
 URLQueueNode *dequeue(URLQueue *queue);
 void enqueue(URLQueueNode *newNode, URLQueue *queue);
+
 URLQueueNode *createURLQueueNode(char *url);
 URLQueue *createURLQueue();
+
 void extract_url(char *html, URLQueue *queue, URLQueueNode* parent);
-int hashing(char *url);
-void logURL(FILE *file, const char *url);
 bool url_filter(URLQueueNode *node);
 void *fetch_url(void *url,FILE* file, URLQueueNode** list);
+size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
+void logURL(FILE *file, const char *url);
 
 URLQueueNode** create_visitor_list(int size);
 void add_list_node(char *url,URLQueueNode** list);
@@ -53,12 +56,12 @@ int hashing(char *url)
 {
   return strlen(url) % 100;
 }
+
+
 void logURL(FILE *file, const char *url)
 {
   fprintf(file, "%s\n", url); // write the URL to the file
 }
-
-
 
 URLQueueNode *createURLQueueNode(char *url)
 {
@@ -114,11 +117,9 @@ URLQueueNode *dequeue(URLQueue *queue)
   pthread_mutex_unlock(&queue->lock);
   return temp;
 }
-void delete_node(URLQueueNode* node)
-{
-  free(node->url);
-  free(node);
-}
+
+
+
 void delete_queue(URLQueue* queue)
 {
   URLQueueNode *node = dequeue(queue);
@@ -131,8 +132,6 @@ void delete_queue(URLQueue* queue)
 
 
 
-
-
 URLQueueNode** create_visitor_list(int size)
 {
   URLQueueNode** vlist = malloc(sizeof(URLQueueNode*)*size);
@@ -141,41 +140,6 @@ URLQueueNode** create_visitor_list(int size)
       vlist[i] = NULL;
     }
   return vlist;
-}
-
-bool check_visited(char *url, URLQueueNode** list)
-{
-  int index = hashing(url);
-  URLQueueNode* N = list[index];
-  while(N!=NULL)
-    {
-      if(strcmp(url,N->url)==0)
-	{
-	  return true;
-	}
-      N = N->next;
-    }
-  return false;
-}
-
-void add_list_node(char *url,URLQueueNode** list)
-{
-  int index = hashing(url);
-  URLQueueNode* node = createURLQueueNode(url);
-  URLQueueNode* N;
-  if (list[index]==NULL)
-    {
-      list[index] = node;
-    }
-  else
-    {
-      N = list[index];
-      while(N->next!=NULL)
-	{
-	  N = N->next;
-	}
-      N->next = node;
-    }  
 }
 
 void delete_list(URLQueueNode** list)
@@ -198,6 +162,49 @@ void delete_list(URLQueueNode** list)
   free(list);
 }
 
+void add_list_node(char *url,URLQueueNode** list)
+{
+  int index = hashing(url);
+  URLQueueNode* node = createURLQueueNode(url);
+  URLQueueNode* N;
+  if (list[index]==NULL)
+    {
+      list[index] = node;
+    }
+  else
+    {
+      N = list[index];
+      while(N->next!=NULL)
+	{
+	  N = N->next;
+	}
+      N->next = node;
+    }  
+}
+
+void delete_node(URLQueueNode* node)
+{
+  free(node->url);
+  free(node);
+}
+
+
+bool check_visited(char *url, URLQueueNode** list)
+{
+  int index = hashing(url);
+  URLQueueNode* N = list[index];
+  while(N!=NULL)
+    {
+      if(strcmp(url,N->url)==0)
+	{
+	  return true;
+	}
+      N = N->next;
+    }
+  return false;
+}
+
+
 bool url_filter(URLQueueNode *node) //implement crawler policies here
 {
   if (node->depth < depth_limit)
@@ -205,6 +212,8 @@ bool url_filter(URLQueueNode *node) //implement crawler policies here
   else
     return false; // URL depth exceeds limit
 }
+
+
 void extract_url(char *html, URLQueue *queue,URLQueueNode* parent ) //pass parent
 {
   char *sub;
@@ -259,6 +268,8 @@ void extract_url(char *html, URLQueue *queue,URLQueueNode* parent ) //pass paren
     extract_url(html, queue,parent);
   }
 }
+
+
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 {
   size_t real_size = size * nmemb;
@@ -275,6 +286,8 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
   response->string[response->size] = '\0';
   return real_size;
 }
+
+
 int fetchurl(URLQueue *queue,FILE* file, URLQueueNode** list) // fetches url in response struct
 {
   //-1 to end;  0 for failed get request; 1 for continue
@@ -325,7 +338,7 @@ int fetchurl(URLQueue *queue,FILE* file, URLQueueNode** list) // fetches url in 
     free(response.string);
     curl_easy_cleanup(curl);
     delete_node(node);
-      return 0;
+    return 0;
     }
   
   
