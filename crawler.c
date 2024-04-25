@@ -36,6 +36,13 @@ typedef struct
   pthread_mutex_t lock;
 } URL_list;
 
+typedef struct
+{
+  FILE* file;
+  URLQueue *queue;
+  URL_list* vlist;
+} arguments;
+
 int depth_limit;
 
 int hashing(char *url);
@@ -50,7 +57,7 @@ void delete_node(URLQueueNode* node);
 
 void extract_url(char *html, URLQueue *queue, URLQueueNode* parent);
 bool url_filter(URLQueueNode *node);
-void *fetch_url(void *url,FILE* file, URL_list vlist);
+int get_html(URLQueue *queue,FILE* file, URL_list* vlist);
 size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata);
 void logURL(FILE *file, const char *url);
 
@@ -306,10 +313,11 @@ size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
 }
 
 
-int fetchurl(URLQueue *queue,FILE* file, URL_list* vlist) // fetches url in response struct
+int get_html(URLQueue *queue,FILE* file, URL_list* vlist) // fetches url in response struct
 {
   //-1 to end;  0 for failed get request; 1 for continue
   URLQueueNode *node = dequeue(queue);
+  char msg[1100] ="Request Failed: " ;
   if(node==NULL)
     {
       return -1;
@@ -331,7 +339,11 @@ int fetchurl(URLQueue *queue,FILE* file, URL_list* vlist) // fetches url in resp
 
   if (curl == NULL)
   {
+    strcat(msg,node->url);
+    strcat(msg,"\n");
     printf("REQUEST FAILED\n");
+    logURL(file,msg);
+    
     free(response.string);
     curl_easy_cleanup(curl);
     delete_node(node);
@@ -346,6 +358,11 @@ int fetchurl(URLQueue *queue,FILE* file, URL_list* vlist) // fetches url in resp
   if (result != CURLE_OK)
   {
     printf("Error %s\n", curl_easy_strerror(result));
+    strcat(msg,node->url);
+    strcat(msg,curl_easy_strerror(result));
+    strcat(msg,"\n");
+    logURL(file,msg);
+    
     free(response.string);
     curl_easy_cleanup(curl);
     delete_node(node);
@@ -368,6 +385,17 @@ int fetchurl(URLQueue *queue,FILE* file, URL_list* vlist) // fetches url in resp
   free(response.string);
   delete_node(node);
   return 1;
+}
+
+void* engine(void *arg)
+{
+  arguments* a = (arguments *)arg;
+  int status_code =1;
+  while(status_code!=-1)
+    {
+      status_code = get_html(a->queue,a->file,a->vlist);
+    }
+  return NULL;
 }
 
 
@@ -396,10 +424,24 @@ int main(int argc, char **argv)
   }
 
   URL_list* vlist = create_visitor_list(100);
+
+  arguments ar;
+  arguments* a = &ar;
+  a->file=file;
+  a->queue=queue;
+  a->vlist=vlist;
   
-  while(fetchurl(queue,file,vlist)!=-1)
+  pthread_t threads[10];
+  for(int i=0;i<10;i++)
     {
+      pthread_create(&threads[i],NULL, engine, (void *)a);
     }
+
+  for(int i=0;i<10;i++)
+    {
+      pthread_join(threads[i],NULL);
+    }
+  
   delete_queue(queue);
   delete_list(vlist);
   fclose(file); // close the file
