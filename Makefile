@@ -10,4 +10,4 @@ clean:
 	rm -f crawler.o *~
 
 run: crawler
-	./crawler.o https://sitecorediaries.org/tag/dummy-website/
+	./crawler.o https://www.google.com

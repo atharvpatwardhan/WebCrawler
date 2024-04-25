@@ -358,9 +358,9 @@ int fetchurl(URLQueue *queue,FILE* file, URL_list* vlist) // fetches url in resp
     delete_node(node);
     return 0;
     }
+
   
-  
-  printf("%s\n",node->url);
+  printf("Depth :  %d\t%s \n",node->depth,node->url);
   logURL(file, node->url);
   add_list_node(node->url,vlist);
   curl_easy_cleanup(curl);
@@ -383,7 +383,7 @@ int main(int argc, char **argv)
   }
   
   char *url = argv[1]; // setting url as the first argument
-  depth_limit = 2;
+  depth_limit = 3;
 
   URLQueueNode *firstNode = createURLQueueNode(url);
   firstNode->depth = 0;
