@@ -7,31 +7,30 @@
 #include <curl/curl.h>
 #include <stdbool.h>
 
-typedef struct // Stores curl Response
+typedef struct // Declaring Response struct
 {
   char *string;
   size_t size;
 } Response;
-typedef struct
-{
-  URLQueueNode *head, *tail;
-  pthread_mutex_t lock;
-} URLQueue;
-
-typedef struct URLQueueNode
+typedef struct URLQueueNode // Node of queue struct
 {
   char *url;
   struct URLQueueNode *next;
   int depth;
 } URLQueueNode;
+typedef struct // Queue struct
+{
+  URLQueueNode *head, *tail;
+  pthread_mutex_t lock;
+} URLQueue;
 
-typedef struct
+typedef struct // List struct
 {
   URLQueueNode **list;
   pthread_mutex_t lock;
 } URL_list;
 
-typedef struct
+typedef struct // Arguments for engine
 {
   FILE *file;
   URLQueue *queue;
@@ -40,15 +39,14 @@ typedef struct
 
 int depth_limit;
 
-int hashing(char *url);
-
-void initQueue(URLQueue *queue);
-URLQueueNode *dequeue(URLQueue *queue);
-void enqueue(URLQueueNode *newNode, URLQueue *queue);
+int hashing(char *url); // for minimising runtime for allocating urls to visited list
 
 URLQueueNode *createURLQueueNode(char *url);
 URLQueue *createURLQueue();
 void delete_node(URLQueueNode *node);
+
+void enqueue(URLQueueNode *newNode, URLQueue *queue);
+URLQueueNode *dequeue(URLQueue *queue);
 
 void extract_url(char *html, URLQueue *queue, URLQueueNode *parent);
 bool url_filter(URLQueueNode *node);
@@ -60,16 +58,7 @@ URL_list *create_visitor_list(int size);
 void add_list_node(char *url, URL_list *vlist);
 void delete_list(URL_list *vlist);
 
-int hashing(char *url)
-{
-  return strlen(url) % 100;
-}
-
-void logURL(FILE *file, const char *url)
-{
-  fprintf(file, "%s\n", url); // write the URL to the file
-}
-
+// Creates node of URL Queue
 URLQueueNode *createURLQueueNode(char *url)
 {
   URLQueueNode *node = malloc(sizeof(URLQueueNode));
@@ -80,6 +69,7 @@ URLQueueNode *createURLQueueNode(char *url)
   return node;
 }
 
+// Creates URL Queue
 URLQueue *createURLQueue()
 {
   URLQueue *queue = malloc(sizeof(URLQueue));
@@ -89,6 +79,7 @@ URLQueue *createURLQueue()
   return queue;
 }
 
+// Adds a url to the queue
 void enqueue(URLQueueNode *newNode, URLQueue *queue)
 {
   pthread_mutex_lock(&queue->lock);
@@ -104,7 +95,7 @@ void enqueue(URLQueueNode *newNode, URLQueue *queue)
   pthread_mutex_unlock(&queue->lock);
 }
 
-// Remove a URL from the queue.
+// Removes a URL from the queue.
 URLQueueNode *dequeue(URLQueue *queue)
 {
   pthread_mutex_lock(&queue->lock);
@@ -124,6 +115,7 @@ URLQueueNode *dequeue(URLQueue *queue)
   return temp;
 }
 
+// Deletes the Queue
 void delete_queue(URLQueue *queue)
 {
   URLQueueNode *node = dequeue(queue);
@@ -134,6 +126,19 @@ void delete_queue(URLQueue *queue)
   }
 }
 
+// filters index of url for visited list
+int hashing(char *url)
+{
+  return strlen(url) % 100;
+}
+
+// Write the URL to the file
+void logURL(FILE *file, const char *url)
+{
+  fprintf(file, "%s\n", url);
+}
+
+// Creates empty list
 URL_list *create_visitor_list(int size)
 {
   URL_list *vlist = malloc(sizeof(URL_list));
@@ -148,6 +153,7 @@ URL_list *create_visitor_list(int size)
   return vlist;
 }
 
+// Deletes entire visited list
 void delete_list(URL_list *vlist)
 {
   URLQueueNode *current;
@@ -225,6 +231,24 @@ bool url_filter(URLQueueNode *node) // implement crawler policies here
     return false; // URL depth exceeds limit
 }
 
+size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
+{
+  size_t real_size = size * nmemb;
+  Response *response = (Response *)userdata;
+  char *ptr = realloc(response->string, response->size + real_size + 1);
+
+  if (ptr == NULL)
+  {
+    return 0;
+  }
+  response->string = ptr;
+  memcpy(&(response->string[response->size]), data, real_size);
+  response->size += real_size;
+  response->string[response->size] = '\0';
+  return real_size;
+}
+
+// Extracts the url from html
 void extract_url(char *html, URLQueue *queue, URLQueueNode *parent) // pass parent
 {
   char *sub;
@@ -265,6 +289,7 @@ void extract_url(char *html, URLQueue *queue, URLQueueNode *parent) // pass pare
 
     URLQueueNode *newNode = createURLQueueNode(furl);
     newNode->depth = parent->depth + 1;
+
     if (!url_filter(newNode))
     {
       delete_node(newNode);
@@ -280,28 +305,12 @@ void extract_url(char *html, URLQueue *queue, URLQueueNode *parent) // pass pare
   }
 }
 
-size_t write_chunk(void *data, size_t size, size_t nmemb, void *userdata)
-{
-  size_t real_size = size * nmemb;
-  Response *response = (Response *)userdata;
-  char *ptr = realloc(response->string, response->size + real_size + 1);
-
-  if (ptr == NULL)
-  {
-    return 0;
-  }
-  response->string = ptr;
-  memcpy(&(response->string[response->size]), data, real_size);
-  response->size += real_size;
-  response->string[response->size] = '\0';
-  return real_size;
-}
-
-int get_html(URLQueue *queue, FILE *file, URL_list *vlist) // fetches url in response struct
+// Fetches html in response struct
+int get_html(URLQueue *queue, FILE *file, URL_list *vlist)
 {
   //-1 to end;  0 for failed get request; 1 for continue
-  URLQueueNode *node = dequeue(queue);
   char msg[1100] = "Request Failed: ";
+  URLQueueNode *node = dequeue(queue);
   if (node == NULL)
   {
     return -1;
@@ -309,16 +318,16 @@ int get_html(URLQueue *queue, FILE *file, URL_list *vlist) // fetches url in res
 
   char *url = node->url;
 
-  if (check_visited(node->url, vlist))
+  if (check_visited(node->url, vlist)) // Continues/skips if URL is already visited
   {
     delete_node(node);
     return 1;
   }
-  CURL *curl;              // declaring handle
-  CURLcode result;         // http status code
-  curl = curl_easy_init(); // initialising handle
-  Response response;
-  response.string = malloc(1);
+  CURL *curl;              // Declaring handle
+  CURLcode result;         // HTTP status code
+  curl = curl_easy_init(); // Initialising handle
+  Response response;       // Initialising Response struct
+  response.string = NULL;
   response.size = 0;
 
   if (curl == NULL)
@@ -370,6 +379,7 @@ int get_html(URLQueue *queue, FILE *file, URL_list *vlist) // fetches url in res
   return 1;
 }
 
+// executed by Threads
 void *engine(void *arg)
 {
   arguments *a = (arguments *)arg;
@@ -381,10 +391,9 @@ void *engine(void *arg)
   return NULL;
 }
 
+// Main method
 int main(int argc, char **argv)
 {
-
-  URLQueue *queue = createURLQueue();
 
   if (argc < 2)
   {
@@ -392,12 +401,13 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
   }
 
-  char *url = argv[1]; // setting url as the first argument
+  char *url = argv[1]; // Setting url as the first argument
   depth_limit = 3;
-
-  URLQueueNode *firstNode = createURLQueueNode(url);
+  URLQueue *queue = createURLQueue();                // Creates Queue
+  URLQueueNode *firstNode = createURLQueueNode(url); // Creates Node of the queue and passes seed url
   firstNode->depth = 0;
-  enqueue(firstNode, queue);
+  enqueue(firstNode, queue); // Seed url enqueued
+
   FILE *file = fopen("log.txt", "w+");
   if (file == NULL)
   {
@@ -413,12 +423,14 @@ int main(int argc, char **argv)
   a->queue = queue;
   a->vlist = vlist;
 
+  // creates ten threads
   pthread_t threads[10];
   for (int i = 0; i < 10; i++)
   {
     pthread_create(&threads[i], NULL, engine, (void *)a);
   }
 
+  // wait for all threads to finish
   for (int i = 0; i < 10; i++)
   {
     pthread_join(threads[i], NULL);
