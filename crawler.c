@@ -181,7 +181,6 @@ void add_list_node(char *url, URL_list *vlist)
   URLQueueNode *node = createURLQueueNode(url);
   URLQueueNode *N;
 
-  pthread_mutex_lock(&vlist->lock);
 
   if (vlist->list[index] == NULL)
   {
@@ -196,7 +195,6 @@ void add_list_node(char *url, URL_list *vlist)
     }
     N->next = node;
   }
-  pthread_mutex_unlock(&vlist->lock);
 }
 
 void delete_node(URLQueueNode *node)
@@ -219,6 +217,7 @@ bool check_visited(char *url, URL_list *vlist)
     }
     N = N->next;
   }
+  add_list_node(url,vlist);
   pthread_mutex_unlock(&vlist->lock);
   return false;
 }
@@ -371,7 +370,7 @@ int get_html(URLQueue *queue, FILE *file, URL_list *vlist)
 
   printf("Depth :  %d\t%s \n", node->depth, node->url);
   logURL(file, node->url);
-  add_list_node(node->url, vlist);
+  //add_list_node(node->url, vlist);
   curl_easy_cleanup(curl);
   extract_url(response.string, queue, node);
   free(response.string);
@@ -381,6 +380,16 @@ int get_html(URLQueue *queue, FILE *file, URL_list *vlist)
 
 // executed by Threads
 void *engine(void *arg)
+{
+  arguments *a = (arguments *)arg;
+  int status_code = 1;
+  while (status_code != -1)
+  {
+    status_code = get_html(a->queue, a->file, a->vlist);
+  }
+  return NULL;
+}
+void *engine2(void *arg)
 {
   arguments *a = (arguments *)arg;
   int status_code = 1;
@@ -425,7 +434,8 @@ int main(int argc, char **argv)
 
   // creates ten threads
   pthread_t threads[10];
-  for (int i = 0; i < 10; i++)
+  pthread_create(&threads[0],NULL,engine2,(void*)a);
+  for (int i = 1; i < 10; i++)
   {
     pthread_create(&threads[i], NULL, engine, (void *)a);
   }
