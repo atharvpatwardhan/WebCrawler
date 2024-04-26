@@ -1,9 +1,23 @@
-# Webcrawler
 
+# Webcrawler: client side program to traverse through a seed and fetch all URL embedded and then visit them. A breath First Search on websites.
+
+
+how to Run
+you will need the following Libraries and can be on any Unix system only
 #Libraries : 
 1)	libcurl
 2)	pthread
 3)	tiddylib
+
+Commands to execute and Run (Check Makefile)
+
+make : to compile and create a object file
+
+make run : to run the created object file
+
+make clean : to remove existing object file 
+
+
 
 Step by step guide to design and implment Webcrawler
 
